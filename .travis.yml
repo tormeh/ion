@@ -15,5 +15,6 @@ script:
     else
         rustup component add rust-src &&
         cargo install xargo &&
+        echo "[dependencies.std]" > Xargo.toml &&
         xargo build --target="${TARGET}";
     fi
