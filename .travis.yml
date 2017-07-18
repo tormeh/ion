@@ -4,7 +4,16 @@ rust:
 sudo: false
 notifications:
   email: false
+env:
+    - TARGET=x86_64-unknown-linux-gnu
+    - TARGET=x86_64-unknown-redox
 script:
-  - cargo build
-  - cargo test
-  - bash examples/run_examples.sh
+  - if [ "${TARGET}" == "x86_64-unknown-linux-gnu" ]; then
+        cargo build &&
+        cargo test &&
+        bash examples/run_examples.sh;
+    else
+        rustup add component rust-src &&
+        cargo install xargo &&
+        xargo build --target="${TARGET}";
+    fi
