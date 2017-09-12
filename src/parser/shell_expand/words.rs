@@ -2,6 +2,8 @@ use std::char;
 use std::io::{self, Write};
 use std::iter::{FromIterator, empty};
 use std::str::FromStr;
+use std::str;
+use std::collections::HashSet;
 
 use super::{Expander, expand_string};
 use super::{is_expression, slice};
@@ -684,17 +686,47 @@ pub struct WordIterator<'a, E: Expander + 'a> {
     read: usize,
     flags: Flags,
     expanders: &'a E,
+    escaped_indices: HashSet<i32>,
 }
 
 impl<'a, E: Expander + 'a> WordIterator<'a, E> {
     pub fn new(data: &'a str, expand_processes: bool, expanders: &'a E) -> WordIterator<'a, E> {
         let flags = if expand_processes { EXPAND_PROCESSES } else { Flags::empty() };
+        let (unescaped_data, escaped_indices) = WordIterator::preprocess_escapes(data);
         WordIterator {
-            data,
+            unescaped_data,
             read: 0,
             flags,
             expanders,
+            escaped_indices,
         }
+    }
+
+    //Removes backslashes (aka escapes) and returns a cleaned slice and a vector with indices of escaped characters
+    fn preprocess_escapes(data: &'a str) -> (&'a str, HashSet<i32>) {
+        let mut unescaped_data = Vec::new();
+        let mut escaped_indices = HashSet::new();
+        let mut current_out_index = 0;
+        let mut escaped = false;
+        let mut iterator = data.bytes();
+        for character in iterator {
+            if escaped {
+                unescaped_data.push(character);
+                escaped_indices.insert(current_out_index);
+                current_out_index += 1;
+                escaped = false;
+            }
+            else if character == b'\\' {
+                escaped = true;
+            }
+            else {
+                unescaped_data.push(character);
+                current_out_index += 1;
+            }
+        }
+        let unescaped_datastring = &unescaped_data.into_iter().collect();
+        let unescaped_datastring2 = str::from_utf8(unescaped_data.into_iter().collect());
+        return (unescaped_datastring, escaped_indices);
     }
 
     // Contains the grammar for collecting whitespace characters
@@ -1235,6 +1267,10 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
         loop {
             if let Some(character) = iterator.next() {
                 match character {
+                    _ if self.escaped_indices.contains(self.read + 1) => {
+                        self.read += 1;
+                        break;
+                    }
                     _ if self.flags.contains(BACKSL) => {
                         self.read += 1;
                         self.flags ^= BACKSL;
@@ -1355,6 +1391,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
 
         while let Some(character) = iterator.next() {
             match character {
+                _ if self.escaped_indices.contains(self.read + 1) => (),
                 _ if self.flags.contains(BACKSL) => self.flags ^= BACKSL,
                 b'\\' => {
                     self.flags ^= BACKSL;
