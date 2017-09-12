@@ -1493,6 +1493,17 @@ mod tests {
     }
 
     #[test]
+    fn escape_space() {
+        let input = "f\\ l k\\ t";
+        let expected = vec![
+            WordToken::Normal("f l", false, false),
+            WordToken::Whitespace(" "),
+            WordToken::Normal("k t", false, false),
+        ];
+        compare(input, expected);
+    }
+
+    #[test]
     fn array_expressions() {
         let input = "[ one two [three four]] [[one two] three four][0]";
         let first = vec!["one", "two", "[three four]"];
