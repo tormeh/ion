@@ -686,15 +686,41 @@ pub struct WordIterator<'a, E: Expander + 'a> {
     read: usize,
     flags: Flags,
     expanders: &'a E,
-    escaped_indices: HashSet<i32>,
+    escaped_indices: HashSet<usize>,
 }
 
+   //Removes backslashes (aka escapes) and returns a cleaned slice and a vector with indices of escaped characters
+/*    fn preprocess_escapes(data: &'b str) -> (& str, HashSet<usize>) {
+        let mut unescaped_data: &'b Vec<u8> = Vec::new();
+        let mut escaped_indices = HashSet::new();
+        let mut current_out_index = 0;
+        let mut escaped = false;
+        let mut iterator = data.bytes();
+        for character in iterator {
+            if escaped {
+                unescaped_data.push(character);
+                escaped_indices.insert(current_out_index);
+                current_out_index += 1;
+                escaped = false;
+            }
+            else if character == b'\\' {
+                escaped = true;
+            }
+            else {
+                unescaped_data.push(character);
+                current_out_index += 1;
+            }
+        }
+        let unescaped_datastring: &'b str = str::from_utf8(unescaped_data.as_slice()).expect("Failed to reconstruct string after preprocessing");
+        return (unescaped_datastring, escaped_indices);
+    }*/
+
 impl<'a, E: Expander + 'a> WordIterator<'a, E> {
-    pub fn new(data: &'a str, expand_processes: bool, expanders: &'a E) -> WordIterator<'a, E> {
+    pub fn new(rawdata: &'a str, expand_processes: bool, expanders: &'a E) -> WordIterator<'a, E> {
         let flags = if expand_processes { EXPAND_PROCESSES } else { Flags::empty() };
-        let (unescaped_data, escaped_indices) = WordIterator::preprocess_escapes(data);
+        let (data, escaped_indices) = WordIterator::preprocess_escapes(rawdata);
         WordIterator {
-            unescaped_data,
+            data,
             read: 0,
             flags,
             expanders,
@@ -703,7 +729,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
     }
 
     //Removes backslashes (aka escapes) and returns a cleaned slice and a vector with indices of escaped characters
-    fn preprocess_escapes(data: &'a str) -> (&'a str, HashSet<i32>) {
+    fn preprocess_escapes(data: &'a str) -> (&'a str, HashSet<usize>) {
         let mut unescaped_data = Vec::new();
         let mut escaped_indices = HashSet::new();
         let mut current_out_index = 0;
@@ -724,8 +750,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
                 current_out_index += 1;
             }
         }
-        let unescaped_datastring = &unescaped_data.into_iter().collect();
-        let unescaped_datastring2 = str::from_utf8(unescaped_data.into_iter().collect());
+        let unescaped_datastring = str::from_utf8(unescaped_data.as_slice()).expect("Failed to reconstruct string after preprocessing");
         return (unescaped_datastring, escaped_indices);
     }
 
@@ -1267,7 +1292,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
         loop {
             if let Some(character) = iterator.next() {
                 match character {
-                    _ if self.escaped_indices.contains(self.read + 1) => {
+                    _ if self.escaped_indices.contains(&(self.read + 1)) => {
                         self.read += 1;
                         break;
                     }
@@ -1391,7 +1416,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
 
         while let Some(character) = iterator.next() {
             match character {
-                _ if self.escaped_indices.contains(self.read + 1) => (),
+                _ if self.escaped_indices.contains(&(self.read + 1)) => (),
                 _ if self.flags.contains(BACKSL) => self.flags ^= BACKSL,
                 b'\\' => {
                     self.flags ^= BACKSL;
