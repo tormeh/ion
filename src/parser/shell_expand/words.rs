@@ -682,7 +682,7 @@ pub enum WordToken<'a> {
 }
 
 pub struct WordIterator<'a, E: Expander + 'a> {
-    data: &'a str,
+    data: String,
     read: usize,
     flags: Flags,
     expanders: &'a E,
@@ -690,8 +690,8 @@ pub struct WordIterator<'a, E: Expander + 'a> {
 }
 
    //Removes backslashes (aka escapes) and returns a cleaned slice and a vector with indices of escaped characters
-/*    fn preprocess_escapes(data: &'b str) -> (& str, HashSet<usize>) {
-        let mut unescaped_data: &'b Vec<u8> = Vec::new();
+    fn preprocess_escapes(data: &str) -> (String, HashSet<usize>) {
+        let mut unescaped_data: Vec<u8> = Vec::new();
         let mut escaped_indices = HashSet::new();
         let mut current_out_index = 0;
         let mut escaped = false;
@@ -711,14 +711,14 @@ pub struct WordIterator<'a, E: Expander + 'a> {
                 current_out_index += 1;
             }
         }
-        let unescaped_datastring: &'b str = str::from_utf8(unescaped_data.as_slice()).expect("Failed to reconstruct string after preprocessing");
-        return (unescaped_datastring, escaped_indices);
-    }*/
+        let unescaped_datastring: &str = str::from_utf8(unescaped_data.as_slice()).expect("Failed to reconstruct string after preprocessing");
+        return (unescaped_datastring.to_owned(), escaped_indices);
+    }
 
 impl<'a, E: Expander + 'a> WordIterator<'a, E> {
     pub fn new(rawdata: &'a str, expand_processes: bool, expanders: &'a E) -> WordIterator<'a, E> {
         let flags = if expand_processes { EXPAND_PROCESSES } else { Flags::empty() };
-        let (data, escaped_indices) = WordIterator::preprocess_escapes(rawdata);
+        let (data, escaped_indices) = preprocess_escapes(rawdata);
         WordIterator {
             data,
             read: 0,
@@ -729,7 +729,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
     }
 
     //Removes backslashes (aka escapes) and returns a cleaned slice and a vector with indices of escaped characters
-    fn preprocess_escapes(data: &'a str) -> (&'a str, HashSet<usize>) {
+    /*fn preprocess_escapes(data: &'a str) -> (&'a str, HashSet<usize>) {
         let mut unescaped_data = Vec::new();
         let mut escaped_indices = HashSet::new();
         let mut current_out_index = 0;
@@ -752,7 +752,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
         }
         let unescaped_datastring = str::from_utf8(unescaped_data.as_slice()).expect("Failed to reconstruct string after preprocessing");
         return (unescaped_datastring, escaped_indices);
-    }
+    }*/
 
     // Contains the grammar for collecting whitespace characters
     fn whitespaces<I>(&mut self, iterator: &mut I) -> WordToken<'a>
