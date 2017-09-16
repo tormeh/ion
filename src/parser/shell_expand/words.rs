@@ -689,7 +689,7 @@ pub struct WordIterator<'a, E: Expander + 'a> {
     escaped_indices: HashSet<usize>,
 }
 
-   //Removes backslashes (aka escapes) and returns a cleaned slice and a vector with indices of escaped characters
+   //Removes backslashes (aka escapes) and returns a cleaned String and a Vector with indices of escaped characters
     fn preprocess_escapes(data: &str) -> (String, HashSet<usize>) {
         let mut unescaped_data: Vec<u8> = Vec::new();
         let mut escaped_indices = HashSet::new();
