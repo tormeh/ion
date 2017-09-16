@@ -728,32 +728,6 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
         }
     }
 
-    //Removes backslashes (aka escapes) and returns a cleaned slice and a vector with indices of escaped characters
-    /*fn preprocess_escapes(data: &'a str) -> (&'a str, HashSet<usize>) {
-        let mut unescaped_data = Vec::new();
-        let mut escaped_indices = HashSet::new();
-        let mut current_out_index = 0;
-        let mut escaped = false;
-        let mut iterator = data.bytes();
-        for character in iterator {
-            if escaped {
-                unescaped_data.push(character);
-                escaped_indices.insert(current_out_index);
-                current_out_index += 1;
-                escaped = false;
-            }
-            else if character == b'\\' {
-                escaped = true;
-            }
-            else {
-                unescaped_data.push(character);
-                current_out_index += 1;
-            }
-        }
-        let unescaped_datastring = str::from_utf8(unescaped_data.as_slice()).expect("Failed to reconstruct string after preprocessing");
-        return (unescaped_datastring, escaped_indices);
-    }*/
-
     // Contains the grammar for collecting whitespace characters
     fn whitespaces<I>(&mut self, iterator: &mut I) -> WordToken<'a>
         where I: Iterator<Item = u8>
