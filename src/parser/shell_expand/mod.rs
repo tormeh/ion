@@ -192,10 +192,10 @@ pub fn expand_tokens<E: Expander>(
             let expanded: String = if $tilde {
                 match expand_func.tilde($text) {
                     Some(s) => s,
-                    None => $text.into()
+                    None => &($text).into().to_owned()
                 }
             } else {
-                $text.into()
+                &($text).into().to_owned()
             };
             if $do_glob {
                 match glob(&expanded) {
@@ -226,7 +226,7 @@ pub fn expand_tokens<E: Expander>(
                         output.push_str(&array_expand(elements, expand_func, index.clone()).join(" "));
                     }
                     WordToken::ArrayVariable(array, _, ref index) => {
-                        if let Some(array) = expand_func.array(array, index.clone()) {
+                        if let Some(array) = expand_func.array(&array, index.clone()) {
                             output.push_str(&array.join(" "));
                         }
                     }
@@ -271,15 +271,15 @@ pub fn expand_tokens<E: Expander>(
                         method.handle(&mut output, expand_func);
                     }
                     WordToken::Brace(ref nodes) => {
-                        expand_brace(&mut output, &mut expanders, &mut tokens, nodes, expand_func, reverse_quoting)
+                        expand_brace(&mut output, &mut expanders, &mut tokens, nodes.as_slice(), expand_func, reverse_quoting)
                     }
-                    WordToken::Whitespace(whitespace) => output.push_str(whitespace),
+                    WordToken::Whitespace(whitespace) => output.push_str(&whitespace),
                     WordToken::Process(command, _, ref index) => {
                         expand_process(&mut output, command, index.clone(), expand_func);
                     }
                     WordToken::Variable(text, quoted, ref index) => {
                         let quoted = if reverse_quoting { !quoted } else { quoted };
-                        let expanded = match expand_func.variable(text, quoted) {
+                        let expanded = match expand_func.variable(&text, quoted) {
                             Some(var) => var,
                             None => continue,
                         };
@@ -287,9 +287,9 @@ pub fn expand_tokens<E: Expander>(
                         slice(&mut output, expanded, index.clone());
                     }
                     WordToken::Normal(text, do_glob, tilde) => {
-                        expand!(text, do_glob, tilde);
+                        expand!(&text, do_glob, tilde);
                     }
-                    WordToken::Arithmetic(s) => expand_arithmetic(&mut output, s, expand_func),
+                    WordToken::Arithmetic(s) => expand_arithmetic(&mut output, &s, expand_func),
                 }
             }
 
@@ -311,7 +311,7 @@ pub fn expand_tokens<E: Expander>(
                     return array_expand(elements, expand_func, index.clone());
                 }
                 WordToken::ArrayVariable(array, quoted, ref index) => {
-                    return match expand_func.array(array, index.clone()) {
+                    return match expand_func.array(&array, index.clone()) {
                         Some(ref array) if quoted => Some(array.join(" ").into()).into_iter().collect(),
                         Some(array) => array,
                         None => Array::new(),
@@ -380,7 +380,7 @@ pub fn expand_tokens<E: Expander>(
                     output.push_str(&array_expand(elements, expand_func, index.clone()).join(" "));
                 }
                 WordToken::ArrayVariable(array, _, ref index) => {
-                    if let Some(array) = expand_func.array(array, index.clone()) {
+                    if let Some(array) = expand_func.array(&array, index.clone()) {
                         output.push_str(&array.join(" "));
                     }
                 }
@@ -425,24 +425,24 @@ pub fn expand_tokens<E: Expander>(
                 }
                 WordToken::Brace(_) => unreachable!(),
                 WordToken::Normal(text, do_glob, tilde) => {
-                    expand!(text, do_glob, tilde);
+                    expand!(&text, do_glob, tilde);
                 }
                 WordToken::Whitespace(text) => {
-                    output.push_str(text);
+                    output.push_str(&text);
                 }
                 WordToken::Process(command, _, ref index) => {
                     expand_process(&mut output, command, index.clone(), expand_func);
                 }
                 WordToken::Variable(text, quoted, ref index) => {
                     let quoted = if reverse_quoting { !quoted } else { quoted };
-                    let expanded = match expand_func.variable(text, quoted) {
+                    let expanded = match expand_func.variable(&text, quoted) {
                         Some(var) => var,
                         None => continue,
                     };
 
                     slice(&mut output, expanded, index.clone());
                 }
-                WordToken::Arithmetic(s) => expand_arithmetic(&mut output, s, expand_func),
+                WordToken::Arithmetic(s) => expand_arithmetic(&mut output, &s, expand_func),
             }
         }
         // I'm not entirely sure if empty strings are valid in any case- maarten

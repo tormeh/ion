@@ -667,18 +667,18 @@ impl<'a> StringMethod<'a> {
 pub enum WordToken<'a> {
     /// Represents a normal string who may contain a globbing character
     /// (the second element) or a tilde expression (the third element)
-    Normal(&'a str, bool, bool),
-    Whitespace(&'a str),
+    Normal(String, bool, bool),
+    Whitespace(String),
     // Tilde(&'a str),
-    Brace(Vec<&'a str>),
+    Brace(Vec<String>),
     Array(Vec<&'a str>, Select),
-    Variable(&'a str, bool, Select),
-    ArrayVariable(&'a str, bool, Select),
+    Variable(String, bool, Select),
+    ArrayVariable(String, bool, Select),
     ArrayProcess(&'a str, bool, Select),
     Process(&'a str, bool, Select),
     StringMethod(StringMethod<'a>),
     ArrayMethod(ArrayMethod<'a>),
-    Arithmetic(&'a str), // Glob(&'a str)
+    Arithmetic(String), // Glob(&'a str)
 }
 
 pub struct WordIterator<'a, E: Expander + 'a> {
@@ -738,11 +738,11 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
             if character == b' ' {
                 self.read += 1;
             } else {
-                return WordToken::Whitespace(&self.data[start..self.read]);
+                return WordToken::Whitespace(self.data[start..self.read].to_owned());
             }
         }
 
-        WordToken::Whitespace(&self.data[start..self.read])
+        WordToken::Whitespace(self.data[start..self.read].to_owned())
     }
 
     /// Contains the logic for parsing tilde syntax
@@ -772,7 +772,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
             if character == b'}' {
                 let output = &self.data[start..self.read];
                 self.read += 1;
-                return WordToken::Variable(output, self.flags.contains(DQUOTE), Select::All);
+                return WordToken::Variable(output.to_owned(), self.flags.contains(DQUOTE), Select::All);
             }
             self.read += 1;
         }
@@ -860,9 +860,9 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
                     let variable = &self.data[start..self.read];
 
                     return if character == b'[' {
-                        WordToken::Variable(variable, self.flags.contains(DQUOTE), self.read_selection(iterator))
+                        WordToken::Variable(variable.to_owned(), self.flags.contains(DQUOTE), self.read_selection(iterator))
                     } else {
-                        WordToken::Variable(variable, self.flags.contains(DQUOTE), Select::All)
+                        WordToken::Variable(variable.to_owned(), self.flags.contains(DQUOTE), Select::All)
                     };
                 }
                 _ => (),
@@ -870,7 +870,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
             self.read += 1;
         }
 
-        WordToken::Variable(&self.data[start..], self.flags.contains(DQUOTE), Select::All)
+        WordToken::Variable(self.data[start..].to_owned(), self.flags.contains(DQUOTE), Select::All)
     }
 
     fn read_selection<I>(&mut self, iterator: &mut I) -> Select
@@ -970,7 +970,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
                 }
                 b'[' => {
                     return WordToken::ArrayVariable(
-                        &self.data[start..self.read],
+                        self.data[start..self.read].to_owned(),
                         self.flags.contains(DQUOTE),
                         self.read_selection(iterator),
                     );
@@ -978,7 +978,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
                 // Only alphanumerical and underscores are allowed in variable names
                 0...47 | 58...64 | 91...94 | 96 | 123...127 => {
                     return WordToken::ArrayVariable(
-                        &self.data[start..self.read],
+                        self.data[start..self.read].to_owned(),
                         self.flags.contains(DQUOTE),
                         Select::All,
                     );
@@ -988,7 +988,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
             self.read += 1;
         }
 
-        WordToken::ArrayVariable(&self.data[start..], self.flags.contains(DQUOTE), Select::All)
+        WordToken::ArrayVariable(self.data[start..].to_owned(), self.flags.contains(DQUOTE), Select::All)
     }
 
     fn braced_array_variable<I>(&mut self, iterator: &mut I) -> WordToken<'a>
@@ -1000,7 +1000,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
             match character {
                 b'[' => {
                     let result = WordToken::ArrayVariable(
-                        &self.data[start..self.read],
+                        self.data[start..self.read].to_owned(),
                         self.flags.contains(DQUOTE),
                         self.read_selection(iterator),
                     );
@@ -1013,12 +1013,12 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
                 b'}' => {
                     let output = &self.data[start..self.read];
                     self.read += 1;
-                    return WordToken::ArrayVariable(output, self.flags.contains(DQUOTE), Select::All);
+                    return WordToken::ArrayVariable(output.to_owned(), self.flags.contains(DQUOTE), Select::All);
                 }
                 // Only alphanumerical and underscores are allowed in variable names
                 0...47 | 58...64 | 91...94 | 96 | 123...127 => {
                     return WordToken::ArrayVariable(
-                        &self.data[start..self.read],
+                        self.data[start..self.read].to_owned(),
                         self.flags.contains(DQUOTE),
                         Select::All,
                     );
@@ -1027,7 +1027,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
             }
             self.read += 1;
         }
-        WordToken::ArrayVariable(&self.data[start..], self.flags.contains(DQUOTE), Select::All)
+        WordToken::ArrayVariable(self.data[start..].to_owned(), self.flags.contains(DQUOTE), Select::All)
     }
 
     /// Contains the logic for parsing subshell syntax.
@@ -1136,7 +1136,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
                     if level == 0 {
                         elements.push(&self.data[start..self.read]);
                         self.read += 1;
-                        return WordToken::Brace(elements);
+                        return WordToken::Brace(elements.iter().map(|s| s.to_owned().to_owned()).collect());
                     } else {
                         level -= 1;
                     }
@@ -1238,7 +1238,7 @@ impl<'a, E: Expander + 'a> WordIterator<'a, E> {
                         let _ = iter.next();
                         let output = &self.data[start..self.read];
                         self.read += 2;
-                        return WordToken::Arithmetic(output);
+                        return WordToken::Arithmetic(output.to_owned());
                     } else {
                         paren -= 1;
                     }
@@ -1282,7 +1282,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                         self.read += 1;
                         self.flags ^= BACKSL;
                         if !self.flags.contains(EXPAND_PROCESSES) {
-                            return Some(WordToken::Normal("\\", glob, tilde));
+                            return Some(WordToken::Normal("\\".to_owned(), glob, tilde));
                         }
                         break;
                     }
@@ -1291,7 +1291,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                         self.read += 1;
                         self.flags ^= SQUOTE;
                         if !self.flags.contains(EXPAND_PROCESSES) {
-                            return Some(WordToken::Normal("'", glob, tilde));
+                            return Some(WordToken::Normal("'".to_owned(), glob, tilde));
                         }
                         break;
                     }
@@ -1304,7 +1304,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                         }
                         self.flags |= DQUOTE;
                         if !self.flags.contains(EXPAND_PROCESSES) {
-                            return Some(WordToken::Normal("\"", glob, tilde));
+                            return Some(WordToken::Normal("\"".to_owned(), glob, tilde));
                         } else {
                             break;
                         }
@@ -1335,7 +1335,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                                 return if self.flags.contains(EXPAND_PROCESSES) {
                                     Some(self.array_process(&mut iterator))
                                 } else {
-                                    Some(WordToken::Normal(&self.data[start..self.read], glob, tilde))
+                                    Some(WordToken::Normal((self.data[start..self.read]).to_owned(), glob, tilde))
                                 };
                             }
                             Some(b'{') => {
@@ -1360,7 +1360,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                                 } else if self.flags.contains(EXPAND_PROCESSES) {
                                     Some(self.process(&mut iterator))
                                 } else {
-                                    Some(WordToken::Normal(&self.data[start..self.read], glob, tilde))
+                                    Some(WordToken::Normal((self.data[start..self.read]).to_owned(), glob, tilde))
                                 };
                             }
                             Some(b'{') => {
@@ -1407,29 +1407,29 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                     };
                     let output = &self.data[start..end];
                     self.read += 1;
-                    return Some(WordToken::Normal(output, glob, tilde));
+                    return Some(WordToken::Normal(output.to_owned(), glob, tilde));
                 }
                 b'\'' if !self.flags.contains(DQUOTE) => {
                     self.flags ^= SQUOTE;
                     let end = if !self.flags.contains(EXPAND_PROCESSES) { self.read + 1 } else { self.read };
                     let output = &self.data[start..end];
                     self.read += 1;
-                    return Some(WordToken::Normal(output, glob, tilde));
+                    return Some(WordToken::Normal(output.to_owned(), glob, tilde));
                 }
                 b'"' if !self.flags.contains(SQUOTE) => {
                     self.flags ^= DQUOTE;
                     let end = if !self.flags.contains(EXPAND_PROCESSES) { self.read + 1 } else { self.read };
                     let output = &self.data[start..end];
                     self.read += 1;
-                    return Some(WordToken::Normal(output, glob, tilde));
+                    return Some(WordToken::Normal(output.to_owned(), glob, tilde));
                 }
                 b' ' | b'{' if !self.flags.intersects(SQUOTE | DQUOTE) => {
-                    return Some(WordToken::Normal(&self.data[start..self.read], glob, tilde));
+                    return Some(WordToken::Normal(self.data[start..self.read].to_owned(), glob, tilde));
                 }
                 b'$' | b'@' if !self.flags.contains(SQUOTE) => {
                     let output = &self.data[start..self.read];
                     if output != "" {
-                        return Some(WordToken::Normal(output, glob, tilde));
+                        return Some(WordToken::Normal(output.to_owned(), glob, tilde));
                     } else {
                         return self.next();
                     };
@@ -1438,7 +1438,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                     if self.glob_check(&mut iterator) {
                         glob = true;
                     } else {
-                        return Some(WordToken::Normal(&self.data[start..self.read], glob, tilde));
+                        return Some(WordToken::Normal(self.data[start..self.read].to_owned(), glob, tilde));
                     }
                 }
                 b'*' | b'?' if !self.flags.contains(SQUOTE) => {
@@ -1447,7 +1447,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
                 b'~' if !self.flags.intersects(SQUOTE | DQUOTE) => {
                     let output = &self.data[start..self.read];
                     if output != "" {
-                        return Some(WordToken::Normal(output, glob, tilde));
+                        return Some(WordToken::Normal(output.to_owned(), glob, tilde));
                     } else {
                         return self.next();
                     }
@@ -1460,7 +1460,7 @@ impl<'a, E: Expander + 'a> Iterator for WordIterator<'a, E> {
         if start == self.read {
             None
         } else {
-            Some(WordToken::Normal(&self.data[start..], glob, tilde))
+            Some(WordToken::Normal(self.data[start..].to_owned(), glob, tilde))
         }
     }
 }
@@ -1505,7 +1505,7 @@ mod tests {
                 pattern: "'pattern'",
                 selection: Select::All,
             }),
-            WordToken::Whitespace(" "),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::StringMethod(StringMethod {
                 method: "join",
                 variable: "array",
@@ -1520,10 +1520,10 @@ mod tests {
     fn escape_with_backslash() {
         let input = "\\$FOO\\$BAR \\$FOO";
         let expected = vec![
-            WordToken::Normal("$FOO", false, false),
-            WordToken::Normal("$BAR", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("$FOO", false, false),
+            WordToken::Normal("$FOO".to_owned(), false, false),
+            WordToken::Normal("$BAR".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("$FOO".to_owned(), false, false),
         ];
         compare(input, expected);
     }
@@ -1532,9 +1532,9 @@ mod tests {
     fn escape_space() {
         let input = "f\\ l k\\ t";
         let expected = vec![
-            WordToken::Normal("f l", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("k t", false, false),
+            WordToken::Normal("f l".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("k t".to_owned(), false, false),
         ];
         compare(input, expected);
     }
@@ -1546,7 +1546,7 @@ mod tests {
         let second = vec!["[one two]", "three", "four"];
         let expected = vec![
             WordToken::Array(first, Select::All),
-            WordToken::Whitespace(" "),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::Array(second, Select::Index(Index::new(0))),
         ];
         compare(input, expected);
@@ -1556,11 +1556,11 @@ mod tests {
     fn array_variables() {
         let input = "@array @array[0] @{array[1..]}";
         let expected = vec![
-            WordToken::ArrayVariable("array", false, Select::All),
-            WordToken::Whitespace(" "),
-            WordToken::ArrayVariable("array", false, Select::Index(Index::new(0))),
-            WordToken::Whitespace(" "),
-            WordToken::ArrayVariable("array", false, Select::Range(Range::from(Index::new(1)))),
+            WordToken::ArrayVariable("array".to_owned(), false, Select::All),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::ArrayVariable("array".to_owned(), false, Select::Index(Index::new(0))),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::ArrayVariable("array".to_owned(), false, Select::Range(Range::from(Index::new(1)))),
         ];
         compare(input, expected);
     }
@@ -1570,7 +1570,7 @@ mod tests {
         let input = "@(echo one two three) @(echo one two three)[0]";
         let expected = vec![
             WordToken::ArrayProcess("echo one two three", false, Select::All),
-            WordToken::Whitespace(" "),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::ArrayProcess("echo one two three", false, Select::Index(Index::new(0))),
         ];
         compare(input, expected);
@@ -1581,15 +1581,15 @@ mod tests {
         let input = "@array[0..3] @array[0...3] @array[abc] @array[..3] @array[3..]";
         let expected =
             vec![
-                WordToken::ArrayVariable("array", false, Select::Range(Range::exclusive(Index::new(0), Index::new(3)))),
-                WordToken::Whitespace(" "),
-                WordToken::ArrayVariable("array", false, Select::Range(Range::inclusive(Index::new(0), Index::new(3)))),
-                WordToken::Whitespace(" "),
-                WordToken::ArrayVariable("array", false, Select::Key(Key { key: "abc".into() })),
-                WordToken::Whitespace(" "),
-                WordToken::ArrayVariable("array", false, Select::Range(Range::to(Index::new(3)))),
-                WordToken::Whitespace(" "),
-                WordToken::ArrayVariable("array", false, Select::Range(Range::from(Index::new(3)))),
+                WordToken::ArrayVariable("array".to_owned(), false, Select::Range(Range::exclusive(Index::new(0), Index::new(3)))),
+                WordToken::Whitespace(" ".to_owned()),
+                WordToken::ArrayVariable("array".to_owned(), false, Select::Range(Range::inclusive(Index::new(0), Index::new(3)))),
+                WordToken::Whitespace(" ".to_owned()),
+                WordToken::ArrayVariable("array".to_owned(), false, Select::Key(Key { key: "abc".into() })),
+                WordToken::Whitespace(" ".to_owned()),
+                WordToken::ArrayVariable("array".to_owned(), false, Select::Range(Range::to(Index::new(3)))),
+                WordToken::Whitespace(" ".to_owned()),
+                WordToken::ArrayVariable("array".to_owned(), false, Select::Range(Range::from(Index::new(3)))),
             ];
         compare(input, expected);
     }
@@ -1598,11 +1598,11 @@ mod tests {
     fn string_keys() {
         let input = "@array['key'] @array[key] @array[]";
         let expected = vec![
-            WordToken::ArrayVariable("array", false, Select::Key(Key { key: "key".into() })),
-            WordToken::Whitespace(" "),
-            WordToken::ArrayVariable("array", false, Select::Key(Key { key: "key".into() })),
-            WordToken::Whitespace(" "),
-            WordToken::ArrayVariable("array", false, Select::Key(Key { key: "".into() })),
+            WordToken::ArrayVariable("array".to_owned(), false, Select::Key(Key { key: "key".into() })),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::ArrayVariable("array".to_owned(), false, Select::Key(Key { key: "key".into() })),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::ArrayVariable("array".to_owned(), false, Select::Key(Key { key: "".into() })),
         ];
         compare(input, expected);
     }
@@ -1611,10 +1611,10 @@ mod tests {
     fn nested_processes() {
         let input = "echo $(echo $(echo one)) $(echo one $(echo two) three)";
         let expected = vec![
-            WordToken::Normal("echo", false, false),
-            WordToken::Whitespace(" "),
+            WordToken::Normal("echo".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::Process("echo $(echo one)", false, Select::All),
-            WordToken::Whitespace(" "),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::Process("echo one $(echo two) three", false, Select::All),
         ];
         compare(input, expected);
@@ -1624,16 +1624,16 @@ mod tests {
     fn words_process_with_quotes() {
         let input = "echo $(git branch | rg '[*]' | awk '{print $2}')";
         let expected = vec![
-            WordToken::Normal("echo", false, false),
-            WordToken::Whitespace(" "),
+            WordToken::Normal("echo".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::Process("git branch | rg '[*]' | awk '{print $2}'", false, Select::All),
         ];
         compare(input, expected);
 
         let input = "echo $(git branch | rg \"[*]\" | awk '{print $2}')";
         let expected = vec![
-            WordToken::Normal("echo", false, false),
-            WordToken::Whitespace(" "),
+            WordToken::Normal("echo".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::Process("git branch | rg \"[*]\" | awk '{print $2}'", false, Select::All),
         ];
         compare(input, expected);
@@ -1643,19 +1643,19 @@ mod tests {
     fn test_words() {
         let input = "echo $ABC \"${ABC}\" one{$ABC,$ABC} ~ $(echo foo) \"$(seq 1 100)\"";
         let expected = vec![
-            WordToken::Normal("echo", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Variable("ABC", false, Select::All),
-            WordToken::Whitespace(" "),
-            WordToken::Variable("ABC", true, Select::All),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("one", false, false),
-            WordToken::Brace(vec!["$ABC", "$ABC"]),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("~", false, true),
-            WordToken::Whitespace(" "),
+            WordToken::Normal("echo".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Variable("ABC".to_owned(), false, Select::All),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Variable("ABC".to_owned(), true, Select::All),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("one".to_owned(), false, false),
+            WordToken::Brace(vec!["$ABC".to_owned(), "$ABC".to_owned()]),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("~".to_owned(), false, true),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::Process("echo foo", false, Select::All),
-            WordToken::Whitespace(" "),
+            WordToken::Whitespace(" ".to_owned()),
             WordToken::Process("seq 1 100", true, Select::All),
         ];
         compare(input, expected);
@@ -1665,13 +1665,13 @@ mod tests {
     fn test_multiple_escapes() {
         let input = "foo\\(\\) bar\\(\\)";
         let expected = vec![
-            WordToken::Normal("foo", false, false),
-            WordToken::Normal("(", false, false),
-            WordToken::Normal(")", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("bar", false, false),
-            WordToken::Normal("(", false, false),
-            WordToken::Normal(")", false, false),
+            WordToken::Normal("foo".to_owned(), false, false),
+            WordToken::Normal("(".to_owned(), false, false),
+            WordToken::Normal(")".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("bar".to_owned(), false, false),
+            WordToken::Normal("(".to_owned(), false, false),
+            WordToken::Normal(")".to_owned(), false, false),
         ];
         compare(input, expected);
     }
@@ -1680,9 +1680,9 @@ mod tests {
     fn test_arithmetic() {
         let input = "echo $((foo bar baz bing 3 * 2))";
         let expected = vec![
-            WordToken::Normal("echo", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Arithmetic("foo bar baz bing 3 * 2"),
+            WordToken::Normal("echo".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Arithmetic("foo bar baz bing 3 * 2".to_owned()),
         ];
         compare(input, expected);
     }
@@ -1691,9 +1691,9 @@ mod tests {
     fn test_globbing() {
         let input = "barbaz* bingcrosb*";
         let expected = vec![
-            WordToken::Normal("barbaz*", true, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("bingcrosb*", true, false),
+            WordToken::Normal("barbaz*".to_owned(), true, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("bingcrosb*".to_owned(), true, false),
         ];
         compare(input, expected);
     }
@@ -1702,15 +1702,15 @@ mod tests {
     fn test_empty_strings() {
         let input = "rename '' 0 a \"\"";
         let expected = vec![
-            WordToken::Normal("rename", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("0", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("a", false, false),
-            WordToken::Whitespace(" "),
-            WordToken::Normal("", false, false),
+            WordToken::Normal("rename".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("0".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("a".to_owned(), false, false),
+            WordToken::Whitespace(" ".to_owned()),
+            WordToken::Normal("".to_owned(), false, false),
         ];
         compare(input, expected);
     }
